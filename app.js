@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const mongooseEncrytion = require("mongoose-encryption");
 
 const app = express();
 const PORT = 3000;
@@ -14,10 +15,21 @@ const userSchema = mongoose.Schema({
   email: String,
   password: String,
 });
+
+const secret = "thidashdidiahdasdfghntnmuyy.";
+userSchema.plugin(mongooseEncrytion, {
+  secret: secret,
+  encryptedFields: ["password"],
+});
+
 const User = new mongoose.model("User", userSchema);
 
 app.route("/").get((req, res) => {
   res.render("home");
+});
+
+app.get("/logout", (req, res) => {
+  res.redirect("/");
 });
 
 app
