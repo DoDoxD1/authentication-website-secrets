@@ -2,7 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const app = express();
 const PORT = 3000;
@@ -33,15 +34,21 @@ app
   })
   .post(async (req, res) => {
     const email = req.body.username;
-    const password = md5(req.body.password);
-    const user = new User({
-      email: email,
-      password: password,
+    const password = req.body.password;
+    bcrypt.hash(password, saltRounds, async (err, hash) => {
+      if (!err) {
+        const user = new User({
+          email: email,
+          password: hash,
+        });
+        const result = await user.save();
+        if (result) {
+          res.render("secrets");
+        } else console.log("Error!");
+      } else {
+        console.log("Error!!!");
+      }
     });
-    const result = await user.save();
-    if (result) {
-      res.render("secrets");
-    } else console.log("Error!");
   });
 
 app
@@ -51,12 +58,14 @@ app
   })
   .post(async (req, res) => {
     const email = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
     const result = await User.findOne({ email: email });
     if (result) {
-      if (result.password === password) {
-        res.render("secrets");
-      } else res.send("Incorrect Password");
+      bcrypt.compare(password, result.password, function (err, result) {
+        if (result == true) {
+          res.render("secrets");
+        } else res.send("Incorrect Password");
+      });
     } else res.send("User do not exists in the database!");
   });
 
