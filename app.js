@@ -27,11 +27,19 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 mongoose.connect("mongodb://localhost:27017/userDB");
+const secretSchema = mongoose.Schema({
+  secret: String,
+  userId: String,
+});
 const userSchema = mongoose.Schema({
   email: String,
   password: String,
   googleId: String,
+  secrets: [secretSchema],
 });
+
+const Secret = new mongoose.model("Secret", secretSchema);
+
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
 const User = new mongoose.model("User", userSchema);
@@ -67,6 +75,33 @@ app.route("/").get((req, res) => {
   res.render("home");
 });
 
+app
+  .route("/submit")
+  .get((req, res) => {
+    if (req.isAuthenticated()) {
+      res.render("submit");
+    } else {
+      res.redirect("/login");
+    }
+  })
+  .post(async (req, res) => {
+    const secretMsg = req.body.secret;
+    const userId = req.user.id;
+    const secret = new Secret({
+      secret: secretMsg,
+      userId: userId,
+    });
+    secret.save();
+    const user = await User.findById(userId);
+    if (user) {
+      user.secrets.push(secret);
+      user.save();
+    } else {
+      console.log("Error!");
+    }
+    res.redirect("/secrets");
+  });
+
 app.get(
   "/auth/google",
   passport.authenticate("google", { scope: ["profile"] })
@@ -90,9 +125,10 @@ app.get("/logout", (req, res) => {
   });
 });
 
-app.get("/secrets", (req, res) => {
+app.get("/secrets", async (req, res) => {
+  const secrets = await Secret.find({});
   if (req.isAuthenticated()) {
-    res.render("secrets");
+    res.render("secrets", { secrets: secrets });
   } else {
     res.redirect("/login");
   }
